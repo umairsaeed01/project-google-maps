@@ -30,16 +30,19 @@
     </form>
 
     <div id="status"></div>
+    <div id="csv-link"></div>
     <div id="results"></div>
 
     <script>
         const scrapeForm = document.getElementById('scrapeForm');
         const statusDiv = document.getElementById('status');
+        const csvLinkDiv = document.getElementById('csv-link');
         const resultsDiv = document.getElementById('results');
 
         scrapeForm.onsubmit = async function(event) {
             event.preventDefault();
             resultsDiv.innerHTML = ''; // Clear previous results
+            csvLinkDiv.innerHTML = ''; // Clear previous CSV link
             statusDiv.textContent = 'Sending request...'; // Initial status
 
             const jobTitle = document.getElementById('jobTitle').value;
@@ -81,11 +84,25 @@
                      throw new Error(`Scraping Error: ${data.error}`);
                 }
 
-                if (Array.isArray(data) && data.length > 0) {
-                    statusDiv.textContent = `Scraping completed. Found details for ${data.length} jobs. Displaying results...`;
-                    const table = createTable(data);
+                // Handle the new response format with jobs array and csv_file
+                const jobsData = data.jobs || data; // Support both new and old format
+                const csvFile = data.csv_file;
+
+                // Display CSV file link if available
+                if (csvFile) {
+                    csvLinkDiv.innerHTML = `
+                        <div style="margin: 15px 0; padding: 10px; background-color: #e8f5e9; border-radius: 5px;">
+                            <strong>CSV Export:</strong>
+                            <a href="${csvFile}" download>Download ${csvFile}</a>
+                        </div>
+                    `;
+                }
+
+                if (Array.isArray(jobsData) && jobsData.length > 0) {
+                    statusDiv.textContent = `Scraping completed. Found details for ${jobsData.length} jobs. Displaying results...`;
+                    const table = createTable(jobsData);
                     resultsDiv.innerHTML = table;
-                } else if (Array.isArray(data) && data.length === 0) {
+                } else if (Array.isArray(jobsData) && jobsData.length === 0) {
                     statusDiv.textContent = 'Scraping completed, but no jobs found or details could not be extracted.';
                     resultsDiv.innerHTML = '<p>No job details found.</p>';
                 } else {

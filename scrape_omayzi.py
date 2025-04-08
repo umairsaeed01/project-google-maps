@@ -1,5 +1,8 @@
 import sys
 import json
+import csv
+import os
+import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -198,12 +201,49 @@ def scrape_job_details(driver, job_url):
 
     return details
 
+def save_to_csv(job_details, job_title, location):
+    """Saves the job details to a CSV file."""
+    if not job_details:
+        print("Python: No job details to save to CSV.", file=sys.stderr)
+        return None
+    
+    # Create a filename based on search parameters and timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"seek_{format_for_url(job_title)}_{format_for_url(location)}_{timestamp}.csv"
+    
+    try:
+        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+            # Get field names from the first job detail dictionary
+            fieldnames = list(job_details[0].keys())
+            
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for job in job_details:
+                # Handle potential encoding issues
+                sanitized_job = {}
+                for key, value in job.items():
+                    if isinstance(value, str):
+                        # Replace problematic characters or encoding issues
+                        sanitized_job[key] = value.replace('\x00', '').encode('utf-8', 'ignore').decode('utf-8')
+                    else:
+                        sanitized_job[key] = value
+                
+                writer.writerow(sanitized_job)
+        
+        print(f"Python: Successfully saved {len(job_details)} jobs to {filename}", file=sys.stderr)
+        return filename
+    except Exception as e:
+        print(f"Python: Error saving to CSV: {e}", file=sys.stderr)
+        return None
 
 def scrape_seek_jobs(jobTitle, location, numJobs):
     """Main function to orchestrate scraping using Selenium."""
     print("Python: Starting scrape_seek_jobs...", file=sys.stderr)
     driver = None
     all_job_details = []
+    csv_filename = None
+    
     try:
         limit = int(numJobs)
     except ValueError:
@@ -216,7 +256,7 @@ def scrape_seek_jobs(jobTitle, location, numJobs):
 
         if not job_links:
             print("Python: No job links found on search results page.", file=sys.stderr)
-            return json.dumps([]) # Return empty list if no links
+            return json.dumps({"jobs": [], "csv_file": None})
 
         print(f"Python: Found {len(job_links)} links. Scraping details for each...", file=sys.stderr)
         for i, link in enumerate(job_links):
@@ -227,16 +267,34 @@ def scrape_seek_jobs(jobTitle, location, numJobs):
             sleep_time = 2 + (i % 2) # Variable sleep 2-3 seconds
             print(f"Python: Sleeping for {sleep_time} seconds...", file=sys.stderr)
             time.sleep(sleep_time)
+        
+        # Save to CSV if we have job details
+        if all_job_details:
+            csv_filename = save_to_csv(all_job_details, jobTitle, location)
 
     except Exception as e:
         print(f"Python: General error in scrape_seek_jobs: {e}", file=sys.stderr)
-        return json.dumps({"error": f"An error occurred during scraping process: {e}", "partial_results": all_job_details})
+        # Still try to save partial results to CSV
+        if all_job_details:
+            csv_filename = save_to_csv(all_job_details, jobTitle, location)
+        return json.dumps({
+            "error": f"An error occurred during scraping process: {e}",
+            "partial_results": all_job_details,
+            "csv_file": csv_filename
+        })
     finally:
         if driver:
             driver.quit()
             print("Python: WebDriver closed.", file=sys.stderr)
 
     print(f"Python: Finished scraping. Returning {len(all_job_details)} detailed job results.", file=sys.stderr)
+    if csv_filename:
+        print(f"Python: Data also saved to CSV file: {csv_filename}", file=sys.stderr)
+    
+    return json.dumps({
+        "jobs": all_job_details,
+        "csv_file": csv_filename
+    })
     return json.dumps(all_job_details)
 
 
@@ -253,3 +311,5 @@ if __name__ == "__main__":
     # Call the main orchestrating function
     result_json = scrape_seek_jobs(job_title_arg, location_arg, num_jobs_arg)
     print(result_json) # Print the final JSON result to stdout
+    
+    # Note: The CSV file is already saved by the scrape_seek_jobs function
