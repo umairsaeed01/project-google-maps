@@ -9,8 +9,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import time
-import re # For potential regex use later
+import re # Keep regex for contact info
 
+# --- Helper Functions ---
 def format_for_url(text):
     """Formats text for Seek URL: lowercase, spaces to hyphens."""
     return text.lower().replace(' ', '-')
@@ -38,28 +39,48 @@ def get_driver():
     print("Python: WebDriver Initialized.", file=sys.stderr)
     return driver
 
+def extract_contact_info(text):
+    """Extracts phone numbers and email addresses from text."""
+    # Simple regex for phone numbers (adjust as needed for different formats)
+    phone_regex = r'(\(?\+?\d{1,3}\)?[\s.-]?\d{1,4}[\s.-]?\d{3,4}[\s.-]?\d{3,4})'
+    # Simple regex for emails
+    email_regex = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+
+    phones = re.findall(phone_regex, text)
+    emails = re.findall(email_regex, text)
+
+    # Filter out unlikely short numbers that might be IDs etc.
+    phones = [p for p in phones if len(re.sub(r'\D', '', p)) >= 8]
+
+    phone_str = ', '.join(phones) if phones else '-'
+    email_str = ', '.join(emails) if emails else '-'
+    return phone_str, email_str
+
 def get_job_links_from_search(driver, jobTitle, location, numJobs_limit):
     """Gets job links from the Seek search results page."""
     print(f"Python: Getting job links for title='{jobTitle}', location='{location}', limit='{numJobs_limit}'", file=sys.stderr)
     formatted_title = format_for_url(jobTitle)
     formatted_location = format_for_url(location)
-    search_url = f'https://www.seek.com.au/{formatted_title}-jobs/in-{formatted_location}'
+    base_url = "https://www.seek.com.au"
+    search_url = f'{base_url}/{formatted_title}-jobs/in-{formatted_location}'
     print(f"Python: Navigating to search URL: {search_url}", file=sys.stderr)
 
     try:
         driver.get(search_url)
+        # Wait for job cards using Selenium's WebDriverWait
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//article[@data-card-type='JobCard']"))
         )
         print("Python: Search results page loaded.", file=sys.stderr)
-        time.sleep(2)
+        time.sleep(2) # Extra pause
         html_content = driver.page_source
     except Exception as e:
         print(f"Python: Error loading search results page {search_url}: {e}", file=sys.stderr)
-        return []
+        return [] # Return empty list on error
 
     soup = BeautifulSoup(html_content, "html.parser")
     links = []
+    # Use find_all with limit if possible, otherwise loop and break
     job_cards = soup.find_all('article', attrs={'data-card-type': 'JobCard'})
     print(f"Python: Found {len(job_cards)} potential job cards on search page.", file=sys.stderr)
 
@@ -68,19 +89,31 @@ def get_job_links_from_search(driver, jobTitle, location, numJobs_limit):
             print(f"Python: Reached job link limit of {numJobs_limit}.", file=sys.stderr)
             break
 
-        title_element = job_card.find('a', attrs={'data-automation': 'jobTitle'})
-        if title_element and title_element.has_attr('href'):
-            job_link = f"https://www.seek.com.au{title_element['href']}"
-            if job_link not in links and '/job/' in job_link:
-                 links.append(job_link)
+        # Try finding the link within the h3 tag first (more specific)
+        link_element = job_card.find('h3', {'data-automation': 'job-title'})
+        if link_element:
+             link_element = link_element.find('a') # Get the 'a' tag inside h3
+
+        # Fallback selectors from scrape_seek.py
+        if not link_element:
+             link_element = job_card.find('a', {'data-automation': 'jobTitle'})
+        if not link_element:
+             link_element = job_card.find('a', href=re.compile(r'/job/')) # General fallback
+
+        if link_element and link_element.has_attr('href'):
+            href = link_element['href']
+            if href.startswith('/job/'):
+                full_url = base_url + href.split('?')[0] # Clean URL parameters
+                if full_url not in links: # Avoid duplicates
+                    links.append(full_url)
         else:
             print("Python: Found job card without a valid title link.", file=sys.stderr)
 
-    print(f"Python: Extracted {len(links)} job links.", file=sys.stderr)
+    print(f"Python: Extracted {len(links)} unique job links.", file=sys.stderr)
     return links
 
 def scrape_job_details(driver, job_url):
-    """Scrapes detailed information from a single job page."""
+    """Scrapes detailed information from a single job page using logic from scrape_seek.py."""
     print(f"Python: Scraping details from: {job_url}", file=sys.stderr)
     details = {
         "Job Title": "-", "Company Name": "-", "Location": "-", "Salary/Pay Range": "-",
@@ -91,64 +124,83 @@ def scrape_job_details(driver, job_url):
 
     try:
         driver.get(job_url)
+        # Wait for a common element, maybe the job title or description area
         WebDriverWait(driver, 15).until(
-             EC.presence_of_element_located((By.XPATH, "//div[@data-automation='jobDescription'] | //div[contains(@class,'job-description')]"))
+             EC.presence_of_element_located((By.XPATH, "//h1[@data-automation='job-detail-title'] | //div[@data-automation='jobAdDetails'] | //div[contains(@class,'job-description')]"))
         )
         print(f"Python: Job details page loaded: {job_url}", file=sys.stderr)
-        time.sleep(1)
-        soup = BeautifulSoup(driver.page_source, "html.parser")
+        time.sleep(2) # Increased pause slightly
+        html_content = driver.page_source
+        soup = BeautifulSoup(html_content, 'html.parser')
 
-        # --- Selector Guesses - THESE NEED TO BE VERIFIED/ADJUSTED ---
-        # Corrected syntax: Use if statements
-        title_el = soup.find('h1', attrs={'data-automation': 'jobTitle'}) or soup.find('h1')
-        details["Job Title"] = title_el.text.strip() if title_el else "-"
+        # --- Extract data using BeautifulSoup - Selectors adapted from scrape_seek.py ---
 
-        company_el = soup.find('span', attrs={'data-automation': 'advertiser-name'}) or soup.find('a', attrs={'data-automation': 'jobCompany'})
-        details["Company Name"] = company_el.text.strip() if company_el else "-"
+        # Title
+        title = soup.find('h1', {'data-automation': 'job-detail-title'})
+        details["Job Title"] = title.text.strip() if title else '-'
+        if details["Job Title"] == '-': # Fallback selector
+             title = soup.find('h1', class_=lambda x: x and 'JobTitle' in x) # Approximate class match
+             details["Job Title"] = title.text.strip() if title else '-'
 
-        location_strong = soup.find('strong', string=re.compile(r'Location', re.I))
-        location_next_sibling = location_strong.find_next_sibling(string=True) if location_strong else None
-        location_el = soup.find('span', attrs={'data-automation': 'job-detail-location'}) or location_next_sibling
-        details["Location"] = location_el.strip() if isinstance(location_el, str) else location_el.text.strip() if location_el else "-"
+        # Company
+        company = soup.find('span', {'data-automation': 'advertiser-name'})
+        details["Company Name"] = company.text.strip() if company else '-'
+        if details["Company Name"] == '-' : # Fallback using link
+             company_link = soup.find('a', {'data-automation': 'job-header-company-name'}) # Check if this exists
+             details["Company Name"] = company_link.text.strip() if company_link else '-'
+        if details["Company Name"] == '-': # Generic fallback
+             company = soup.find('span', class_=lambda x: x and 'AdvertiserName' in x) # Approximate class match
+             details["Company Name"] = company.text.strip() if company else '-'
+
+        # Location
+        location_element = soup.find('span', {'data-automation': 'job-detail-location'})
+        details["Location"] = location_element.text.strip() if location_element else '-'
+        # Note: Fallbacks for location from scrape_seek.py were complex and might need more context, skipping for now.
+
+        # Salary
+        salary = soup.find('span', {'data-automation': 'job-detail-salary'})
+        details["Salary/Pay Range"] = salary.text.strip() if salary else '-'
+        # Skipping generic fallback for salary as it's often unreliable
+
+        # Job Type / Classification (Simplified approach)
+        job_type_element = soup.find('span', {'data-automation': 'job-detail-work-type'})
+        details["Job Type"] = job_type_element.text.strip() if job_type_element else '-'
+        # Could add classification logic here if needed
+
+        # Date Posted
+        date_posted_element = soup.find('span', {'data-automation': 'job-detail-date'})
+        details["Date Posted"] = date_posted_element.text.strip() if date_posted_element else '-'
+        # Skipping generic fallback
+
+        # Full description
+        description_div = soup.find('div', {'data-automation': 'jobAdDetails'})
+        details["Full Job Description"] = description_div.get_text(separator='\n', strip=True) if description_div else '-'
+        if details["Full Job Description"] == '-': # Fallback
+             description_div = soup.find('div', class_=lambda x: x and 'job-description' in x) # Approximate class match
+             details["Full Job Description"] = description_div.get_text(separator='\n', strip=True) if description_div else '-'
+
+        # Extract Responsibilities & Skills (Placeholder - requires specific logic based on description structure)
+        details["Key Responsibilities"] = "See Full Description"
+        details["Required Skills/Qualifications"] = "See Full Description"
+
+        # Extract contacts using the helper function
+        if details["Full Job Description"] != '-':
+            details["Phone Number"], details["Email"] = extract_contact_info(details["Full Job Description"])
+        else:
+            details["Phone Number"], details["Email"] = "-", "-"
 
 
-        salary_el = soup.find('span', attrs={'data-automation': 'job-detail-salary'}) or soup.find(string=re.compile(r'\$\d+.*(per|p\.a|annum)', re.I))
-        details["Salary/Pay Range"] = salary_el.text.strip() if salary_el else "-"
-
-        job_type_el = soup.find('span', attrs={'data-automation': 'job-detail-work-type'}) or soup.find(string=re.compile(r'(full time|part time|contract|casual)', re.I))
-        details["Job Type"] = job_type_el.text.strip() if job_type_el else "-"
-
-        date_posted_el = soup.find('span', attrs={'data-automation': 'job-detail-date'})
-        details["Date Posted"] = date_posted_el.text.strip() if date_posted_el else "-"
-
-        description_div = soup.find('div', attrs={'data-automation': 'jobDescription'}) or soup.find('div', class_=lambda x: x and 'job-description' in x)
-        details["Full Job Description"] = description_div.get_text(separator='\n', strip=True) if description_div else "-"
-
-        if description_div:
-            responsibilities_heading = description_div.find(['h2', 'h3', 'strong'], string=re.compile(r'Responsibilities|Duties', re.I))
-            if responsibilities_heading:
-                 resp_sibling = responsibilities_heading.find_next_sibling(string=True)
-                 details["Key Responsibilities"] = resp_sibling.strip() if resp_sibling else "See description"
-
-            skills_heading = description_div.find(['h2', 'h3', 'strong'], string=re.compile(r'Skills|Qualifications|Requirements', re.I))
-            if skills_heading:
-                 skills_sibling = skills_heading.find_next_sibling(string=True)
-                 details["Required Skills/Qualifications"] = skills_sibling.strip() if skills_sibling else "See description"
-
-        details["Phone Number"] = "-"
-        details["Email"] = "-"
-
-        print(f"Python: Successfully scraped details for: {job_url}", file=sys.stderr)
+        print(f"Python: Successfully extracted: {details['Job Title']} | {details['Company Name']} | {details['Location']}", file=sys.stderr)
 
     except Exception as e:
         print(f"Python: Error scraping details for {job_url}: {e}", file=sys.stderr)
-        details["Job Title"] = f"Error scraping: {e}"
+        details["Job Title"] = f"Error scraping details" # Keep other fields as '-'
 
     return details
 
 
 def scrape_seek_jobs(jobTitle, location, numJobs):
-    """Main function to orchestrate scraping."""
+    """Main function to orchestrate scraping using Selenium."""
     print("Python: Starting scrape_seek_jobs...", file=sys.stderr)
     driver = None
     all_job_details = []
@@ -164,20 +216,21 @@ def scrape_seek_jobs(jobTitle, location, numJobs):
 
         if not job_links:
             print("Python: No job links found on search results page.", file=sys.stderr)
-            return json.dumps([])
+            return json.dumps([]) # Return empty list if no links
 
         print(f"Python: Found {len(job_links)} links. Scraping details for each...", file=sys.stderr)
         for i, link in enumerate(job_links):
             print(f"--- Scraping Job {i+1}/{len(job_links)} ---", file=sys.stderr)
             details = scrape_job_details(driver, link)
             all_job_details.append(details)
-            sleep_time = 2 + (i % 3)
+            # Add a delay between requests
+            sleep_time = 2 + (i % 2) # Variable sleep 2-3 seconds
             print(f"Python: Sleeping for {sleep_time} seconds...", file=sys.stderr)
             time.sleep(sleep_time)
 
     except Exception as e:
         print(f"Python: General error in scrape_seek_jobs: {e}", file=sys.stderr)
-        return json.dumps({"error": f"An error occurred: {e}", "partial_results": all_job_details})
+        return json.dumps({"error": f"An error occurred during scraping process: {e}", "partial_results": all_job_details})
     finally:
         if driver:
             driver.quit()
@@ -188,6 +241,7 @@ def scrape_seek_jobs(jobTitle, location, numJobs):
 
 
 if __name__ == "__main__":
+    # Restored main block to be called by server.js
     if len(sys.argv) != 4:
         print(json.dumps({"error": "Usage: python scrape_omayzi.py <jobTitle> <location> <numJobs>"}))
         sys.exit(1)
@@ -196,5 +250,6 @@ if __name__ == "__main__":
     location_arg = sys.argv[2]
     num_jobs_arg = sys.argv[3]
 
+    # Call the main orchestrating function
     result_json = scrape_seek_jobs(job_title_arg, location_arg, num_jobs_arg)
-    print(result_json)
+    print(result_json) # Print the final JSON result to stdout
