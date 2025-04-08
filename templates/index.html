@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seek Job Scraper</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .search-form { margin-bottom: 20px; }
+        .results-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        .results-table th, .results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .results-table th { background-color: #f2f2f2; }
+        .error { color: red; margin-bottom: 10px; }
+        .no-results { font-style: italic; color: #555; }
+        .job-description { max-height: 100px; overflow-y: auto; display: block; } /* Style for description */
+    </style>
+</head>
+<body>
+    <h1>Seek Job Scraper</h1>
+
+    <form action="/search" method="post" class="search-form">
+        <label for="job_title">Job Title:</label>
+        <input type="text" id="job_title" name="job_title" value="{{ search_term or '' }}" required>
+        <button type="submit">Search</button>
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if results is not none %}
+        <h2>Search Results for "{{ search_term }}"</h2>
+        {% if results %}
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Job Title</th>
+                        <th>Company Name</th>
+                        <th>Salary</th>
+                        <th>Description</th>
+                        <!-- Add headers for Email and Phone if needed later -->
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in results %}
+                    <tr>
+                        <td>{{ job.title }}</td>
+                        <td>{{ job.company }}</td>
+                        <td>{{ job.salary }}</td>
+                        <td><div class="job-description">{{ job.description }}</div></td>
+                        <!-- Add cells for Email and Phone if needed later -->
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p><a href="/download_csv">Download Results as CSV</a></p>
+        {% else %}
+            <p class="no-results">No jobs found matching "{{ search_term }}".</p>
+        {% endif %}
+    {% endif %}
+
+</body>
+</html>
