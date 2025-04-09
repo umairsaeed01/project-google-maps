@@ -1,433 +1,130 @@
-# GitHub MCP Server
+# Seek Job Scraper Web App
 
-The GitHub MCP Server is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction)
-server that provides seamless integration with GitHub APIs, enabling advanced
-automation and interaction capabilities for developers and tools.
+## Description
 
-[![Install with Docker in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=github&inputs=%5B%7B%22id%22%3A%22github_token%22%2C%22description%22%3A%22GitHub%20Personal%20Access%20Token%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22GITHUB_PERSONAL_ACCESS_TOKEN%22%2C%22ghcr.io%2Fgithub%2Fgithub-mcp-server%22%5D%2C%22env%22%3A%7B%22GITHUB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agithub_token%7D%22%7D%7D) [![Install with Docker in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=github&inputs=%5B%7B%22id%22%3A%22github_token%22%2C%22description%22%3A%22GitHub%20Personal%20Access%20Token%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22GITHUB_PERSONAL_ACCESS_TOKEN%22%2C%22ghcr.io%2Fgithub%2Fgithub-mcp-server%22%5D%2C%22env%22%3A%7B%22GITHUB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agithub_token%7D%22%7D%7D&quality=insiders)
+This is a simple web application that scrapes job listings from Seek.com.au based on user-provided criteria (job title, location, number of jobs). It displays the scraped job details in a table on the webpage and provides a link to download the data as a CSV file.
 
-## Use Cases
+## Files Involved
 
-- Automating GitHub workflows and processes.
-- Extracting and analyzing data from GitHub repositories.
-- Building AI powered tools and applications that interact with GitHub's ecosystem.
+*   **`index.html`**: The main frontend file containing the HTML structure, CSS styling, and JavaScript code. It handles user input, sends requests to the backend, displays the status, shows the results table, and provides the CSV download link.
+*   **`server.js`**: A backend server built with Node.js and Express. It serves the `index.html` file, handles GET requests to the `/scrape` endpoint, executes the Python scraping script (`scrape_omayzi.py`), receives the results, serves the generated CSV files, and sends the job data back to the frontend as JSON.
+*   **`scrape_omayzi.py`**: The core Python script that performs the web scraping. It uses Selenium to control a headless Chrome browser and BeautifulSoup to parse HTML content from Seek.com.au. It extracts job details, saves them to a CSV file, and prints the results (job data and CSV filename) as a JSON string to standard output.
 
-## Prerequisites
+## Requirements
 
-[Create a GitHub Personal Access Token](https://github.com/settings/personal-access-tokens/new).
-The MCP server can use many of the GitHub APIs, so enable the permissions that you feel comfortable granting your AI tools.
+*   **Node.js and npm:** Required to run the `server.js` backend. Download from [https://nodejs.org/](https://nodejs.org/).
+*   **Python 3.x:** Required to run the `scrape_omayzi.py` script. Download from [https://www.python.org/](https://www.python.org/).
+*   **pip:** Python's package installer (usually comes with Python).
+*   **Google Chrome:** The script uses ChromeDriver, which requires Google Chrome to be installed.
 
-To learn more about access tokens, please check out the [documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
+## Setup Instructions
 
-To run the server in a container, you will need to have [Docker](https://www.docker.com/) installed.
+1.  **Clone or Download:** Obtain the project files (`index.html`, `server.js`, `scrape_omayzi.py`) and place them in a single directory on your local machine.
+2.  **Install Node.js Dependencies:**
+    *   Open your terminal or command prompt.
+    *   Navigate (`cd`) to the project directory.
+    *   Run the command: `npm install express`
+3.  **Install Python Dependencies:**
+    *   In the same terminal, run the command: `pip install selenium webdriver-manager beautifulsoup4`
+    *   *(Note: `webdriver-manager` will automatically download and manage the appropriate ChromeDriver version for your installed Chrome browser the first time the Python script runs).*
 
-## Installation
+## Running the Application
 
-### Usage with VS Code
+1.  **Start the Node.js Server:**
+    *   Make sure you are in the project directory in your terminal.
+    *   Run the command: `node server.js`
+    *   You should see output indicating the server is listening on `http://localhost:3000`.
+2.  **Access the Web App:**
+    *   Open your web browser (like Chrome, Firefox, etc.).
+    *   Navigate to the address: `http://localhost:3000`
+3.  **Use the Scraper:**
+    *   Fill in the "Job Title", "Location" (e.g., "Melbourne VIC"), and "Number of Jobs to Scrape" fields.
+    *   Click the "Scrape Jobs" button.
+4.  **View Results:**
+    *   Wait for the scraping process to complete. Status updates will appear on the page. This can take several minutes depending on the number of jobs requested.
+    *   Once finished, the scraped job details will be displayed in a table.
+    *   A link to download the generated CSV file (e.g., `seek_software-engineer_melbourne-vic_20250409_131018.csv`) will appear above the table.
 
-For quick installation, use one of the one-click install buttons at the top of this README.
+## Important Notes
 
-For manual installation, add the following JSON block to your User Settings (JSON) file in VS Code. You can do this by pressing `Ctrl + Shift + P` and typing `Preferences: Open User Settings (JSON)`.
+*   **Scraping Time:** Web scraping individual pages is time-consuming. Be patient, especially when requesting a larger number of jobs.
+*   **Website Changes:** Web scraping scripts are sensitive to changes in the target website's structure. If Seek.com.au updates its layout, the selectors in `scrape_omayzi.py` (e.g., `data-automation` attributes) may need to be updated for the script to continue working correctly.
+*   **Terms of Service:** Always be mindful of the website's terms of service (robots.txt, usage policies) regarding automated scraping. Use responsibly.
 
-Optionally, you can add it to a file called `.vscode/mcp.json` in your workspace. This will allow you to share the configuration with others.
+## AI Prompt to Recreate This Project
 
-> Note that the `mcp` key is not needed in the `.vscode/mcp.json` file.
+If you want to recreate this project using an AI assistant, you can use the following prompt:
 
-```json
-{
-  "mcp": {
-    "inputs": [
-      {
-        "type": "promptString",
-        "id": "github_token",
-        "description": "GitHub Personal Access Token",
-        "password": true
-      }
-    ],
-    "servers": {
-      "github": {
-        "command": "docker",
-        "args": [
-          "run",
-          "-i",
-          "--rm",
-          "-e",
-          "GITHUB_PERSONAL_ACCESS_TOKEN",
-          "ghcr.io/github/github-mcp-server"
-        ],
-        "env": {
-          "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_token}"
-        }
-      }
-    }
-  }
-}
 ```
-
-More about using MCP server tools in VS Code's [agent mode documentation](https://code.visualstudio.com/docs/copilot/chat/mcp-servers).
-
-### Usage with Claude Desktop
-
-```json
-{
-  "mcpServers": {
-    "github": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
-      }
-    }
-  }
-}
-```
-
-### Build from source
-
-If you don't have Docker, you can use `go` to build the binary in the
-`cmd/github-mcp-server` directory, and use the `github-mcp-server stdio`
-command with the `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable set to
-your token.
-
-## GitHub Enterprise Server
-
-The flag `--gh-host` and the environment variable `GH_HOST` can be used to set
-the GitHub Enterprise Server hostname.
-
-## i18n / Overriding Descriptions
-
-The descriptions of the tools can be overridden by creating a
-`github-mcp-server-config.json` file in the same directory as the binary.
-
-The file should contain a JSON object with the tool names as keys and the new
-descriptions as values. For example:
-
-```json
-{
-  "TOOL_ADD_ISSUE_COMMENT_DESCRIPTION": "an alternative description",
-  "TOOL_CREATE_BRANCH_DESCRIPTION": "Create a new branch in a GitHub repository"
-}
-```
-
-You can create an export of the current translations by running the binary with
-the `--export-translations` flag.
-
-This flag will preserve any translations/overrides you have made, while adding
-any new translations that have been added to the binary since the last time you
-exported.
-
-```sh
-./github-mcp-server --export-translations
-cat github-mcp-server-config.json
-```
-
-You can also use ENV vars to override the descriptions. The environment
-variable names are the same as the keys in the JSON file, prefixed with
-`GITHUB_MCP_` and all uppercase.
-
-For example, to override the `TOOL_ADD_ISSUE_COMMENT_DESCRIPTION` tool, you can
-set the following environment variable:
-
-```sh
-export GITHUB_MCP_TOOL_ADD_ISSUE_COMMENT_DESCRIPTION="an alternative description"
-```
-
-## Tools
-
-### Users
-
-- **get_me** - Get details of the authenticated user
-  - No parameters required
-
-### Issues
-
-- **get_issue** - Gets the contents of an issue within a repository
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `issue_number`: Issue number (number, required)
-
-- **create_issue** - Create a new issue in a GitHub repository
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `title`: Issue title (string, required)
-  - `body`: Issue body content (string, optional)
-  - `assignees`: Usernames to assign to this issue (string[], optional)
-  - `labels`: Labels to apply to this issue (string[], optional)
-
-- **add_issue_comment** - Add a comment to an issue
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `issue_number`: Issue number (number, required)
-  - `body`: Comment text (string, required)
-
-- **list_issues** - List and filter repository issues
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `state`: Filter by state ('open', 'closed', 'all') (string, optional)
-  - `labels`: Labels to filter by (string[], optional)
-  - `sort`: Sort by ('created', 'updated', 'comments') (string, optional)
-  - `direction`: Sort direction ('asc', 'desc') (string, optional)
-  - `since`: Filter by date (ISO 8601 timestamp) (string, optional)
-  - `page`: Page number (number, optional)
-  - `perPage`: Results per page (number, optional)
-
-- **update_issue** - Update an existing issue in a GitHub repository
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `issue_number`: Issue number to update (number, required)
-  - `title`: New title (string, optional)
-  - `body`: New description (string, optional)
-  - `state`: New state ('open' or 'closed') (string, optional)
-  - `labels`: New labels (string[], optional)
-  - `assignees`: New assignees (string[], optional)
-  - `milestone`: New milestone number (number, optional)
-
-- **search_issues** - Search for issues and pull requests
-  - `query`: Search query (string, required)
-  - `sort`: Sort field (string, optional)
-  - `order`: Sort order (string, optional)
-  - `page`: Page number (number, optional)
-  - `per_page`: Results per page (number, optional)
-
-### Pull Requests
-
-- **get_pull_request** - Get details of a specific pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-
-- **list_pull_requests** - List and filter repository pull requests
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `state`: PR state (string, optional)
-  - `sort`: Sort field (string, optional)
-  - `direction`: Sort direction (string, optional)
-  - `perPage`: Results per page (number, optional)
-  - `page`: Page number (number, optional)
-
-- **merge_pull_request** - Merge a pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-  - `commit_title`: Title for the merge commit (string, optional)
-  - `commit_message`: Message for the merge commit (string, optional)
-  - `merge_method`: Merge method (string, optional)
-
-- **get_pull_request_files** - Get the list of files changed in a pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-
-- **get_pull_request_status** - Get the combined status of all status checks for a pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-
-- **update_pull_request_branch** - Update a pull request branch with the latest changes from the base branch
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-  - `expectedHeadSha`: The expected SHA of the pull request's HEAD ref (string, optional)
-
-- **get_pull_request_comments** - Get the review comments on a pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-
-- **get_pull_request_reviews** - Get the reviews on a pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-
-- **create_pull_request_review** - Create a review on a pull request review
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `pullNumber`: Pull request number (number, required)
-  - `body`: Review comment text (string, optional)
-  - `event`: Review action ('APPROVE', 'REQUEST_CHANGES', 'COMMENT') (string, required)
-  - `commitId`: SHA of commit to review (string, optional)
-  - `comments`: Line-specific comments array of objects, each object with path (string), position (number), and body (string) (array, optional)
-
-- **create_pull_request** - Create a new pull request
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `title`: PR title (string, required)
-  - `body`: PR description (string, optional)
-  - `head`: Branch containing changes (string, required)
-  - `base`: Branch to merge into (string, required)
-  - `draft`: Create as draft PR (boolean, optional)
-  - `maintainer_can_modify`: Allow maintainer edits (boolean, optional)
-
-### Repositories
-
-- **create_or_update_file** - Create or update a single file in a repository
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `path`: File path (string, required)
-  - `message`: Commit message (string, required)
-  - `content`: File content (string, required)
-  - `branch`: Branch name (string, optional)
-  - `sha`: File SHA if updating (string, optional)
-
-- **push_files** - Push multiple files in a single commit
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `branch`: Branch to push to (string, required)
-  - `files`: Files to push, each with path and content (array, required)
-  - `message`: Commit message (string, required)
-
-- **search_repositories** - Search for GitHub repositories
-
-  - `query`: Search query (string, required)
-  - `sort`: Sort field (string, optional)
-  - `order`: Sort order (string, optional)
-  - `page`: Page number (number, optional)
-  - `perPage`: Results per page (number, optional)
-
-- **create_repository** - Create a new GitHub repository
-
-  - `name`: Repository name (string, required)
-  - `description`: Repository description (string, optional)
-  - `private`: Whether the repository is private (boolean, optional)
-  - `autoInit`: Auto-initialize with README (boolean, optional)
-
-- **get_file_contents** - Get contents of a file or directory
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `path`: File path (string, required)
-  - `ref`: Git reference (string, optional)
-
-- **fork_repository** - Fork a repository
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `organization`: Target organization name (string, optional)
-
-- **create_branch** - Create a new branch
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `branch`: New branch name (string, required)
-  - `sha`: SHA to create branch from (string, required)
-
-- **list_commits** - Gets commits of a branch in a repository
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `sha`: Branch name, tag, or commit SHA (string, optional)
-  - `path`: Only commits containing this file path (string, optional)
-  - `page`: Page number (number, optional)
-  - `perPage`: Results per page (number, optional)
-
-### Search
-
-- **search_code** - Search for code across GitHub repositories
-
-  - `query`: Search query (string, required)
-  - `sort`: Sort field (string, optional)
-  - `order`: Sort order (string, optional)
-  - `page`: Page number (number, optional)
-  - `perPage`: Results per page (number, optional)
-
-- **search_users** - Search for GitHub users
-  - `query`: Search query (string, required)
-  - `sort`: Sort field (string, optional)
-  - `order`: Sort order (string, optional)
-  - `page`: Page number (number, optional)
-  - `perPage`: Results per page (number, optional)
-
-### Code Scanning
-
-- **get_code_scanning_alert** - Get a code scanning alert
-
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `alertNumber`: Alert number (number, required)
-
-- **list_code_scanning_alerts** - List code scanning alerts for a repository
-  - `owner`: Repository owner (string, required)
-  - `repo`: Repository name (string, required)
-  - `ref`: Git reference (string, optional)
-  - `state`: Alert state (string, optional)
-  - `severity`: Alert severity (string, optional)
-
-## Resources
-
-### Repository Content
-
-- **Get Repository Content**
-  Retrieves the content of a repository at a specific path.
-
-  - **Template**: `repo://{owner}/{repo}/contents{/path*}`
-  - **Parameters**:
-    - `owner`: Repository owner (string, required)
-    - `repo`: Repository name (string, required)
-    - `path`: File or directory path (string, optional)
-
-- **Get Repository Content for a Specific Branch**
-  Retrieves the content of a repository at a specific path for a given branch.
-
-  - **Template**: `repo://{owner}/{repo}/refs/heads/{branch}/contents{/path*}`
-  - **Parameters**:
-    - `owner`: Repository owner (string, required)
-    - `repo`: Repository name (string, required)
-    - `branch`: Branch name (string, required)
-    - `path`: File or directory path (string, optional)
-
-- **Get Repository Content for a Specific Commit**
-  Retrieves the content of a repository at a specific path for a given commit.
-
-  - **Template**: `repo://{owner}/{repo}/sha/{sha}/contents{/path*}`
-  - **Parameters**:
-    - `owner`: Repository owner (string, required)
-    - `repo`: Repository name (string, required)
-    - `sha`: Commit SHA (string, required)
-    - `path`: File or directory path (string, optional)
-
-- **Get Repository Content for a Specific Tag**
-  Retrieves the content of a repository at a specific path for a given tag.
-
-  - **Template**: `repo://{owner}/{repo}/refs/tags/{tag}/contents{/path*}`
-  - **Parameters**:
-    - `owner`: Repository owner (string, required)
-    - `repo`: Repository name (string, required)
-    - `tag`: Tag name (string, required)
-    - `path`: File or directory path (string, optional)
-
-- **Get Repository Content for a Specific Pull Request**
-  Retrieves the content of a repository at a specific path for a given pull request.
-
-  - **Template**: `repo://{owner}/{repo}/refs/pull/{prNumber}/head/contents{/path*}`
-  - **Parameters**:
-    - `owner`: Repository owner (string, required)
-    - `repo`: Repository name (string, required)
-    - `prNumber`: Pull request number (string, required)
-    - `path`: File or directory path (string, optional)
-
-## License
-
-This project is licensed under the terms of the MIT open source license. Please refer to [MIT](./LICENSE) for the full terms.
+Objective: Create a web application that allows users to scrape job listings from Seek.com.au, view the results, and download them as a CSV file.
+
+Core Components:
+
+1.  **Frontend (`index.html`):**
+    *   Create an HTML page with CSS for basic styling.
+    *   Include input fields for:
+        *   Job Title (text input)
+        *   Location (text input, e.g., "Sydney NSW")
+        *   Number of Jobs (number input, default 5, min 1)
+    *   Add a "Scrape Jobs" submit button.
+    *   Include a `div` element (`id="status"`) to display status messages (e.g., "Requesting...", "Scraping job 1/5...", "Error...", "Completed").
+    *   Include a `div` element (`id="csv-link"`) to display a download link for the generated CSV file.
+    *   Include a `div` element (`id="results"`) where the scraped job data will be displayed as an HTML table.
+    *   Write JavaScript code to:
+        *   Handle the form submission.
+        *   Prevent default form submission.
+        *   Clear previous results and status messages.
+        *   Get values from input fields.
+        *   Perform basic validation (fields not empty, number >= 1).
+        *   Construct the request URL for the backend `/scrape` endpoint, including query parameters (`jobTitle`, `location`, `numJobs`).
+        *   Use the `fetch` API to send a GET request to the backend `/scrape` endpoint.
+        *   Update the status `div` during the process.
+        *   Handle the JSON response from the server. The expected response format is an object: `{"jobs": [array_of_job_objects], "csv_file": "filename.csv"}`. Also handle potential error responses.
+        *   If a `csv_file` is present in the response, create and display a download link (`<a>` tag with `download` attribute) in the `csv-link` div.
+        *   If the `jobs` array is present and not empty, call a function `createTable(jobsData)` to generate the HTML table and display it in the `results` div.
+        *   If the `jobs` array is empty, display a "No jobs found" message.
+        *   Implement the `createTable(jobsData)` function to dynamically generate an HTML table from the array of job objects. The table headers should be: "Job Title", "Company Name", "Location", "Salary/Pay Range", "Job Type", "Date Posted", "Key Responsibilities", "Required Skills/Qualifications", "Phone Number", "Email", "Full Job Description", "Job URL". Make the "Job URL" a clickable link opening in a new tab. Use `<pre>` tags for the "Full Job Description" cell to preserve formatting. Handle missing data gracefully (e.g., display '-').
+
+2.  **Backend (`server.js`):**
+    *   Use Node.js and the Express framework (`npm install express`).
+    *   Serve static files from the project directory (specifically `index.html` and the generated CSV files).
+    *   Set up the server to listen on port 3000.
+    *   Create a GET endpoint `/scrape`.
+    *   In the `/scrape` endpoint:
+        *   Retrieve `jobTitle`, `location`, and `numJobs` from the request query parameters (`req.query`). Validate their presence.
+        *   Construct the command to execute the Python scraper script (`scrape_omayzi.py`). Use `child_process.exec`. The command should be like: `python scrape_omayzi.py "Job Title" "Location" "NumJobs"`. Ensure arguments are properly quoted/escaped.
+        *   Execute the Python command. Handle potential errors during execution (e.g., Python not found, script errors). Log `stderr` from the Python script for debugging.
+        *   Capture the `stdout` from the Python script.
+        *   Parse the `stdout` as JSON. Handle JSON parsing errors.
+        *   Send the parsed JSON object back to the frontend with a 200 status code.
+        *   If any errors occur (script execution, JSON parsing), send an appropriate error status code (e.g., 500) and a JSON error message back to the frontend.
+
+3.  **Python Scraper (`scrape_omayzi.py`):**
+    *   Use Python 3.
+    *   Required libraries: `selenium`, `webdriver-manager`, `beautifulsoup4`, `json`, `csv`, `sys`, `re`, `time`, `datetime`, `os`. Ensure these are installed (`pip install ...`).
+    *   Read `jobTitle`, `location`, `numJobs` from command-line arguments (`sys.argv`).
+    *   Implement helper functions:
+        *   `format_for_url(text)`: Converts text to lowercase and replaces spaces with hyphens for use in Seek URLs.
+        *   `get_driver()`: Initializes and returns a headless Selenium Chrome WebDriver using `webdriver-manager` to handle the ChromeDriver automatically. Include user-agent spoofing and options to bypass detection (`--headless`, `--no-sandbox`, `--disable-dev-shm-usage`, disable automation flags, navigator.webdriver=undefined).
+        *   `extract_contact_info(text)`: Uses regular expressions (`re`) to find potential phone numbers and email addresses within a block of text. Return found contacts or '-'.
+        *   `get_job_links_from_search(driver, jobTitle, location, numJobs_limit)`: Navigates to the Seek search results page, waits for job cards (`article[data-card-type='JobCard']`) to load, parses the HTML with BeautifulSoup, extracts unique job page URLs (up to `numJobs_limit`), and returns them as a list. Handle potential errors during page load or link extraction.
+        *   `scrape_job_details(driver, job_url)`: Navigates to an individual job URL, waits for content to load, parses the HTML with BeautifulSoup, and extracts the following details into a dictionary: "Job Title", "Company Name", "Location", "Salary/Pay Range", "Job Type", "Date Posted", "Full Job Description", "Job URL". Use specific `data-automation` attributes (e.g., `job-detail-title`, `advertiser-name`, `jobAdDetails`) as primary selectors, but include fallback selectors (e.g., based on class names containing keywords like 'JobTitle', 'AdvertiserName', 'job-description') if the primary ones fail. For "Key Responsibilities" and "Required Skills/Qualifications", use placeholder text like "See Full Description". Call `extract_contact_info` on the full description to get "Phone Number" and "Email". Return the dictionary. Handle errors during scraping of a single page.
+        *   `save_to_csv(job_details, job_title, location)`: Takes the list of scraped job dictionaries. If the list is not empty, creates a unique filename (e.g., `seek_jobtitle_location_timestamp.csv`), writes the data (including headers) to the CSV file using the `csv` module (handle potential encoding issues), prints a success message to stderr, and returns the filename. Returns `None` if there's an error or no data.
+    *   Implement the main execution logic (`if __name__ == "__main__":`):
+        *   Get command-line arguments.
+        *   Initialize the WebDriver using `get_driver()`.
+        *   Call `get_job_links_from_search` to get the list of job URLs.
+        *   Iterate through the job links:
+            *   Call `scrape_job_details` for each link.
+            *   Append the resulting dictionary to a list (`all_job_details`).
+            *   Include a short, variable delay (`time.sleep`) between scraping each job page (e.g., 2-3 seconds).
+        *   After the loop (or if an error occurs), ensure the WebDriver is closed (`driver.quit()`) in a `finally` block.
+        *   Call `save_to_csv` with the `all_job_details` list.
+        *   Create the final result dictionary: `{"jobs": all_job_details, "csv_file": csv_filename}`.
+        *   Print this final dictionary to standard output as a JSON string (`json.dumps`).
+    *   Include `try...except` blocks for error handling throughout the process. Print informative error messages to `stderr` (`sys.stderr`).
+
+4.  **Setup and Running Instructions (for the final user):**
+    *   Include comments in the code or a separate README explaining how to install dependencies (`npm install express`, `pip install selenium webdriver-manager beautifulsoup4`) and how to run the application (`node server.js`, then access `http://localhost:3000`).
+
+Code Style: Use clear variable names, add comments for complex logic, and ensure robust error handling with informative feedback to the user (via status messages) and the console/stderr.
